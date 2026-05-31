@@ -690,11 +690,9 @@ void runGame() {
     int bestScore = loadRecord();
     snLen=3; snDirX=1; snDirY=0; snScore=0; snGrow=false;
     for (int i=0;i<snLen;i++) { snBody[i].x=SN_COLS/2-i; snBody[i].y=SN_ROWS/2; }
-    
+
     tft.fillScreen(TFT_BLACK);
-    // Border
     tft.drawRect(SN_OX-1, SN_OY-1, SN_COLS*SN_CELL+2, SN_ROWS*SN_CELL+2, tft.color565(80,80,80));
-    // Draw initial snake
     for (int i=0;i<snLen;i++) {
         uint16_t c = (i==0) ? tft.color565(100,220,100) : TFT_GREEN;
         tft.fillRect(SN_OX+snBody[i].x*SN_CELL+1, SN_OY+snBody[i].y*SN_CELL+1, SN_CELL-2, SN_CELL-2, c);
@@ -706,41 +704,49 @@ void runGame() {
     unsigned long lastMove=millis();
     int interval=200;
 
+    int nextDirX=snDirX, nextDirY=snDirY;
+    int prevJoyDx=0, prevJoyDy=0;
+
     while (true) {
         if (digitalRead(BTN_B_PIN)==LOW) return;
+
         int rawX=analogRead(JOY_X_PIN), rawY=analogRead(JOY_Y_PIN);
         int dx=(rawX<1748)?-1:(rawX>2348)?1:0;
         int dy=(rawY<1748)?-1:(rawY>2348)?1:0;
-        // Update direction (no 180)
-        if (dx && !dy && dx!=-snDirX) { snDirX=dx; snDirY=0; }
-        if (dy && !dx && dy!=-snDirY) { snDirX=0; snDirY=dy; }
+        if (dy != 0) dx = 0; // evita diagonal
+
+        bool joyChanged=(dx!=prevJoyDx || dy!=prevJoyDy);
+        if (joyChanged) {
+            if (dx && dx!=-snDirX) { nextDirX=dx; nextDirY=0; }
+            if (dy && dy!=-snDirY) { nextDirX=0;  nextDirY=dy; }
+        }
+        prevJoyDx=dx; prevJoyDy=dy;
 
         if (millis()-lastMove < (unsigned long)interval) continue;
         lastMove=millis();
 
-        // New head
+        // Aplica direcció just abans de moure
+        snDirX=nextDirX; snDirY=nextDirY;
+
         SnPt newHead = {(int8_t)(snBody[0].x+snDirX), (int8_t)(snBody[0].y+snDirY)};
-        // Wall collision
         if (newHead.x<0||newHead.x>=SN_COLS||newHead.y<0||newHead.y>=SN_ROWS) break;
-        // Self collision
         for (int i=0;i<snLen;i++) if (snBody[i].x==newHead.x && snBody[i].y==newHead.y) goto gameover;
 
-        // Erase tail (before shifting)
         if (!snGrow) {
             int tx=snBody[snLen-1].x, ty=snBody[snLen-1].y;
             tft.fillRect(SN_OX+tx*SN_CELL+1, SN_OY+ty*SN_CELL+1, SN_CELL-2, SN_CELL-2, TFT_BLACK);
         }
-        // Shift body
         if (snGrow) { if (snLen<SN_MAX) snLen++; snGrow=false; }
         for (int i=snLen-1;i>0;i--) snBody[i]=snBody[i-1];
         snBody[0]=newHead;
-        // Draw head
+
         tft.fillRect(SN_OX+newHead.x*SN_CELL+1, SN_OY+newHead.y*SN_CELL+1, SN_CELL-2, SN_CELL-2, tft.color565(100,220,100));
-        // Recolor neck
         if (snLen>1) tft.fillRect(SN_OX+snBody[1].x*SN_CELL+1, SN_OY+snBody[1].y*SN_CELL+1, SN_CELL-2, SN_CELL-2, TFT_GREEN);
-        // Food eaten?
+
         if (newHead.x==snFood.x && newHead.y==snFood.y) {
-            snScore+=10; snGrow=true;
+            snScore+=10;
+            if (snScore>bestScore) bestScore=snScore; // actualitza rècord en viu
+            snGrow=true;
             interval=max(80, interval-5);
             playTone(660,40,0.07f);
             snSpawnFood();
@@ -751,17 +757,16 @@ void runGame() {
         gameover:
         break;
     }
-    // Game over
+
     tft.setTextColor(TFT_RED,TFT_BLACK); tft.setTextSize(3);
     tft.setCursor(50,200); tft.print("GAME OVER");
     tft.setTextSize(2); tft.setTextColor(TFT_WHITE,TFT_BLACK);
     tft.setCursor(60,240); tft.printf("Pts: %d", snScore);
     playTone(220,300,0.1f); playTone(180,500,0.12f);
     delay(2000);
-    if (xSemaphoreTake(recordMutex, pdMS_TO_TICKS(200))==pdTRUE) {
+    if (xSemaphoreTake(recordMutex,pdMS_TO_TICKS(200))==pdTRUE) {
         saveRecord(snScore); xSemaphoreGive(recordMutex);
     }
-    return;
 }
 
 // ============================================================
