@@ -730,7 +730,11 @@ void runGame() {
 
         SnPt newHead = {(int8_t)(snBody[0].x+snDirX), (int8_t)(snBody[0].y+snDirY)};
         if (newHead.x<0||newHead.x>=SN_COLS||newHead.y<0||newHead.y>=SN_ROWS) break;
-        for (int i=0;i<snLen;i++) if (snBody[i].x==newHead.x && snBody[i].y==newHead.y) goto gameover;
+        bool dead=false;
+        for (int i=0;i<snLen;i++) {
+            if (snBody[i].x==newHead.x && snBody[i].y==newHead.y) { dead=true; break; }
+        }
+        if (dead) break;
 
         if (!snGrow) {
             int tx=snBody[snLen-1].x, ty=snBody[snLen-1].y;
@@ -753,9 +757,14 @@ void runGame() {
             tft.setTextSize(1); tft.setTextColor(TFT_WHITE,TFT_BLACK);
             tft.setCursor(2,5); tft.printf("Snake  Pts:%d  Rec:%d   ", snScore, bestScore);
         }
-        continue;
-        gameover:
-        break;
+        if (digitalRead(BTN_B_PIN)==LOW) {
+            if (snScore > bestScore) {
+                if (xSemaphoreTake(recordMutex,pdMS_TO_TICKS(200))==pdTRUE) {
+                    saveRecord(snScore); xSemaphoreGive(recordMutex);
+                }
+            }
+            return;
+        }
     }
 
     tft.setTextColor(TFT_RED,TFT_BLACK); tft.setTextSize(3);
