@@ -708,7 +708,6 @@ void runGame() {
     int prevJoyDx=0, prevJoyDy=0;
 
     while (true) {
-        if (digitalRead(BTN_B_PIN)==LOW) return;
 
         int rawX=analogRead(JOY_X_PIN), rawY=analogRead(JOY_Y_PIN);
         int dx=(rawX<1748)?-1:(rawX>2348)?1:0;
@@ -773,8 +772,10 @@ void runGame() {
     tft.setCursor(60,240); tft.printf("Pts: %d", snScore);
     playTone(220,300,0.1f); playTone(180,500,0.12f);
     delay(2000);
-    if (xSemaphoreTake(recordMutex,pdMS_TO_TICKS(200))==pdTRUE) {
-        saveRecord(snScore); xSemaphoreGive(recordMutex);
+    if (snScore > bestScore) {
+        if (xSemaphoreTake(recordMutex,pdMS_TO_TICKS(200))==pdTRUE) {
+            saveRecord(snScore); xSemaphoreGive(recordMutex);
+        }
     }
 }
 
