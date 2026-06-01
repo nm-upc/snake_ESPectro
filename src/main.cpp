@@ -757,10 +757,8 @@ void runGame() {
             tft.setCursor(2,5); tft.printf("Snake  Pts:%d  Rec:%d   ", snScore, bestScore);
         }
         if (digitalRead(BTN_B_PIN)==LOW) {
-            if (snScore > bestScore) {
-                if (xSemaphoreTake(recordMutex,pdMS_TO_TICKS(200))==pdTRUE) {
-                    saveRecord(snScore); xSemaphoreGive(recordMutex);
-                }
+            if (xSemaphoreTake(recordMutex,pdMS_TO_TICKS(200))==pdTRUE) {
+                saveRecord(snScore); xSemaphoreGive(recordMutex);
             }
             return;
         }
@@ -772,10 +770,8 @@ void runGame() {
     tft.setCursor(60,240); tft.printf("Pts: %d", snScore);
     playTone(220,300,0.1f); playTone(180,500,0.12f);
     delay(2000);
-    if (snScore > bestScore) {
-        if (xSemaphoreTake(recordMutex,pdMS_TO_TICKS(200))==pdTRUE) {
-            saveRecord(snScore); xSemaphoreGive(recordMutex);
-        }
+    if (xSemaphoreTake(recordMutex,pdMS_TO_TICKS(200))==pdTRUE) {
+        saveRecord(snScore); xSemaphoreGive(recordMutex);
     }
 }
 
